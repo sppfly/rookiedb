@@ -160,7 +160,12 @@ class LeafNode extends BPlusNode {
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
-
+        // todo: 此处order应该如何获得？
+        int order = 0;
+        if (keys.size() < order) {
+            return Optional.empty();
+        } 
+        
         return Optional.empty();
     }
 
@@ -177,7 +182,11 @@ class LeafNode extends BPlusNode {
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-
+        int index = Collections.binarySearch(keys, key);
+        if (index == -1) return;
+        keys.remove(index);
+        rids.remove(index);
+        sync();
         return;
     }
 

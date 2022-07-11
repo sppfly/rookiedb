@@ -102,6 +102,8 @@ class InnerNode extends BPlusNode {
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
+        LeafNode leaf = get(key);
+        Optional<Pair<DataBox, Long>> res = leaf.put(key, rid);
 
         return Optional.empty();
     }
@@ -119,7 +121,9 @@ class InnerNode extends BPlusNode {
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-
+        LeafNode leaf = get(key);
+        leaf.remove(key);
+        sync();
         return;
     }
 
