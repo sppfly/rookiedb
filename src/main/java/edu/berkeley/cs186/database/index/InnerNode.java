@@ -102,10 +102,53 @@ class InnerNode extends BPlusNode {
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
-        LeafNode leaf = get(key);
-        Optional<Pair<DataBox, Long>> res = leaf.put(key, rid);
+        BPlusNode node = getChild(children.size()-1);
+        for (int i=0; i<keys.size(); i++) {
+            if (key.compareTo(keys.get(i)) < 0) {
+                node = getChild(i);
+                break;
+            }
+        }
+        Optional<Pair<DataBox, Long>> res = node.put(key, rid);
+        if (res.isEmpty()) {
+            return Optional.empty();
+        }
 
-        return Optional.empty();
+        Pair<DataBox, Long> pair = res.get();
+        int i = 0;
+        for (; i<keys.size(); i++) {
+            if (key.compareTo(keys.get(i)) < 0) {
+                break;
+            }
+        }
+        keys.add(i, pair.getFirst());
+        // children插入的位置需要仔细确定
+        children.add(i, pair.getSecond());
+
+        int order = metadata.getOrder();
+
+        if (keys.size() <= 2 * order) {
+            sync();
+            return Optional.empty();
+        } 
+
+        List<DataBox> newKeys = new ArrayList<>();
+        List<Long> newChildren = new ArrayList<>();
+
+        while(keys.size() > order + 1) {
+            newKeys.add(keys.remove(order+1));
+            newChildren.add(children.remove(order+1));
+        }
+        newChildren.add(children.remove(children.size()-1));
+
+        InnerNode innerNode = new InnerNode(metadata, bufferManager, keys, children, treeContext);
+        
+        DataBox newKey = keys.remove(keys.size() - 1);
+        Pair<DataBox, Long> result = new Pair<DataBox,Long>(newKey, innerNode.getPage().getPageNum());
+        
+        sync();        
+
+        return Optional.of(result);
     }
 
     // See BPlusNode.bulkLoad.

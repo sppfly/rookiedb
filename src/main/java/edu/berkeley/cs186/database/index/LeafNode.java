@@ -160,13 +160,32 @@ class LeafNode extends BPlusNode {
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
-        // todo: 此处order应该如何获得？
-        int order = 0;
-        if (keys.size() < order) {
+        int order = metadata.getOrder();
+        int i = 0;
+        for (; i<keys.size(); i++) {
+            if (key.compareTo(keys.get(i)) < 0) {
+                break;
+            }
+        }
+        keys.add(i, key);
+        rids.add(i, rid);
+        if (keys.size() <= 2*order) {
+            sync();
             return Optional.empty();
         } 
-        
-        return Optional.empty();
+
+        List<DataBox> newKeys = new ArrayList<>();
+        List<RecordId> newRids = new ArrayList<>();
+        while (keys.size() > order) {
+            newKeys.add(keys.remove(order));
+            newRids.add(rids.remove(order));
+        }
+
+        LeafNode leafNode = new LeafNode(metadata, bufferManager, newKeys, newRids, rightSibling, treeContext);
+        this.rightSibling = Optional.of(leafNode.getPage().getPageNum());
+        Pair<DataBox, Long> pair = new Pair<DataBox,Long>(newKeys.get(0), leafNode.getPage().getPageNum());
+        sync();
+        return Optional.of(pair);
     }
 
     // See BPlusNode.bulkLoad.
