@@ -202,7 +202,7 @@ public class BPlusTree {
 
         // TODO(proj2): Return a BPlusTreeIterator.
 
-        return Collections.emptyIterator();
+        return new BPlusTreeIterator(root.getLeftmostLeaf(), 0);
     }
 
     /**
@@ -234,8 +234,16 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): Return a BPlusTreeIterator.
+        LeafNode leaf = root.get(key);
+        int i = 0;
+        for (; i < leaf.getKeys().size(); i++) {
+            DataBox one_key = leaf.getKeys().get(i);
+            if (key.compareTo(one_key) <= 0) {
+                break;
+            }
+        }
 
-        return Collections.emptyIterator();
+        return new BPlusTreeIterator(leaf, i);
     }
 
     /**
@@ -269,8 +277,6 @@ public class BPlusTree {
         
         InnerNode newRoot = new InnerNode(metadata, bufferManager, keys, children, lockContext);
         updateRoot(newRoot);
-
-        return;
     }
 
     /**
@@ -298,7 +304,11 @@ public class BPlusTree {
         // Note: You should NOT update the root variable directly.
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
-
+        // TODO: check whether the tree is empty
+        Optional pairOptional = root.bulkLoad(data, fillFactor);
+        if (!pairOptional.isPresent()) {
+            return;
+        }
         return;
     }
 
@@ -320,7 +330,6 @@ public class BPlusTree {
 
         // TODO(proj2): implement
         root.remove(key);
-        return;
     }
 
     // Helpers /////////////////////////////////////////////////////////////////
@@ -433,19 +442,29 @@ public class BPlusTree {
     // Iterator ////////////////////////////////////////////////////////////////
     private class BPlusTreeIterator implements Iterator<RecordId> {
         // TODO(proj2): Add whatever fields and constructors you want here.
+        int index;
+        LeafNode current;
+
+        BPlusTreeIterator (LeafNode current, int index){
+            this.current = current;
+            this.index = index;
+        }
 
         @Override
         public boolean hasNext() {
-            // TODO(proj2): implement
+            return index < current.getKeys().size() || (
+                current.getRightSibling().isPresent() && 
+                current.getRightSibling().get().getKeys().size() > 0);
 
-            return false;
         }
 
         @Override
         public RecordId next() {
-            // TODO(proj2): implement
-
-            throw new NoSuchElementException();
+            if (index >= current.getKeys().size()) {
+                current = current.getRightSibling().get();
+                index = 0;
+            }
+            return current.getRids().get(index++);
         }
     }
 }
