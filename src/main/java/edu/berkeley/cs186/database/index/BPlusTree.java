@@ -237,8 +237,8 @@ public class BPlusTree {
         LeafNode leaf = root.get(key);
         int i = 0;
         for (; i < leaf.getKeys().size(); i++) {
-            DataBox one_key = leaf.getKeys().get(i);
-            if (key.compareTo(one_key) <= 0) {
+            DataBox oneKey = leaf.getKeys().get(i);
+            if (key.compareTo(oneKey) <= 0) {
                 break;
             }
         }
@@ -265,7 +265,7 @@ public class BPlusTree {
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
         Optional<Pair<DataBox, Long>> res = root.put(key, rid);
-        if (res.isEmpty()) return;
+        if (!res.isPresent()) return;
 
         Pair<DataBox, Long> pair = res.get();
         
@@ -304,12 +304,25 @@ public class BPlusTree {
         // Note: You should NOT update the root variable directly.
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
-        // TODO: check whether the tree is empty
-        Optional pairOptional = root.bulkLoad(data, fillFactor);
-        if (!pairOptional.isPresent()) {
-            return;
+        if (!root.getLeftmostLeaf().getKeys().isEmpty()) {
+            throw new BPlusTreeException("The BPlusIndex is not empty");
         }
-        return;
+        while (true) {
+            Optional<Pair<DataBox,Long>> optionalPair = root.bulkLoad(data, fillFactor);
+            if (!optionalPair.isPresent()) {
+                return;
+            }
+            Pair<DataBox,Long> pair = optionalPair.get();
+            List<DataBox> keys = new ArrayList<>();
+            List<Long> children = new ArrayList<>();
+
+        
+            keys.add(pair.getFirst());
+            children.add(root.getPage().getPageNum());
+            children.add(pair.getSecond());
+            InnerNode newRoot = new InnerNode(metadata, bufferManager, keys, children, lockContext);
+            updateRoot(newRoot);
+        }
     }
 
     /**
@@ -454,12 +467,15 @@ public class BPlusTree {
         public boolean hasNext() {
             return index < current.getKeys().size() || (
                 current.getRightSibling().isPresent() && 
-                current.getRightSibling().get().getKeys().size() > 0);
+                !current.getRightSibling().get().getKeys().isEmpty());
 
         }
 
         @Override
         public RecordId next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException("no element in BPlusTreeItertor");
+            }
             if (index >= current.getKeys().size()) {
                 current = current.getRightSibling().get();
                 index = 0;

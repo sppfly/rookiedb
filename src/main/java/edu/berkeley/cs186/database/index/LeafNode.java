@@ -12,7 +12,6 @@ import edu.berkeley.cs186.database.table.RecordId;
 import java.nio.ByteBuffer;
 import java.util.*;
 
-import javax.xml.crypto.Data;
 
 /**
  * A leaf of a B+ tree. Every leaf in a B+ tree of order d stores between d and
@@ -205,6 +204,7 @@ class LeafNode extends BPlusNode {
             rids.add(pair.getSecond());
         }
         if (!data.hasNext()) {
+            sync();
             return Optional.empty();
         }
 
@@ -216,6 +216,7 @@ class LeafNode extends BPlusNode {
 
         LeafNode rightleaf = new LeafNode(metadata, bufferManager, rightKeys, rightRids, Optional.empty(), treeContext);
         this.rightSibling = Optional.of(rightleaf.getPage().getPageNum());
+        sync();
         return Optional.of(new Pair<>(rightleaf.getKeys().get(0), rightleaf.getPage().getPageNum()));
     }
 
@@ -228,7 +229,6 @@ class LeafNode extends BPlusNode {
         keys.remove(index);
         rids.remove(index);
         sync();
-        return;
     }
 
     // Iterators ///////////////////////////////////////////////////////////////

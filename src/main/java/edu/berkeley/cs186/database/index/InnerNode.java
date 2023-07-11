@@ -143,41 +143,44 @@ class InnerNode extends BPlusNode {
         return Optional.of(new Pair<DataBox,Long>(newKey, innerNode.getPage().getPageNum()));
     }
 
+
+    private BPlusNode getRightmostChild() {
+        return getChild(getChildren().size() - 1);
+    }
+
     // See BPlusNode.bulkLoad.
     @Override
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,
             float fillFactor) {
-        // TODO(proj2): implement
-
-        Optional<Pair<DataBox,Long>> pairOptional = getChild(children.size() - 1).bulkLoad(data, fillFactor);
-        if (!pairOptional.isPresent()) {
-            return Optional.empty();
-        }
-        Pair<DataBox, Long> pair = pairOptional.get();
-        
-        keys.add(pair.getFirst());
-        children.add(pair.getSecond());
-
         int order = metadata.getOrder();
-
-        if (keys.size() <= 2 * order) {
+    
+        while (data.hasNext()) {
+            Optional<Pair<DataBox,Long>> optionalPair = getRightmostChild().bulkLoad(data, fillFactor);
+            if (!optionalPair.isPresent()) {
+                sync();
+                return Optional.empty();
+            }
+            Pair<DataBox,Long> pair = optionalPair.get();
+            keys.add(pair.getFirst());
+            children.add(pair.getSecond());
+            if (keys.size() > 2 * order) {
+                break;
+            }
             sync();
-            return Optional.empty();
-        } 
-
-        List<DataBox> newKeys = new ArrayList<>();
-        List<Long> newChildren = new ArrayList<>();
-
-        while(order < keys.size()) {
-            newKeys.add(keys.remove(order));
-            newChildren.add(children.remove(order + 1));
         }
 
-        DataBox newKey = newKeys.remove(0);
-        InnerNode innerNode = new InnerNode(metadata, bufferManager, newKeys, newChildren, treeContext);
-        
-        sync();        
-        return Optional.of(new Pair<DataBox,Long>(newKey, innerNode.getPage().getPageNum()));
+        List<DataBox> rightKeys = new ArrayList<>();
+        List<Long> rightChildren = new ArrayList<>();
+        while (keys.size() > order) {
+            rightKeys.add(keys.remove(order));
+            rightChildren.add(children.remove(order + 1));
+        }
+
+        DataBox parentKey = rightKeys.remove(0);
+        InnerNode newInnerNode = new InnerNode(metadata, bufferManager, rightKeys, rightChildren, treeContext);
+
+        sync();
+        return Optional.of(new Pair<>(parentKey, newInnerNode.getPage().getPageNum()));
     }
 
     // See BPlusNode.remove.
