@@ -112,7 +112,7 @@ class InnerNode extends BPlusNode {
         BPlusNode child = getChild(i);
         
         Optional<Pair<DataBox, Long>> pairOptional = child.put(key, rid);
-        if (pairOptional.isEmpty()) {
+        if (!pairOptional.isPresent()) {
             return Optional.empty();
         }
 
